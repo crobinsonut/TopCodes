@@ -1,23 +1,23 @@
 /*
  * @(#) Scanner.java
- * 
+ *
  * Tangible Object Placement Codes (TopCodes)
  * Copyright (c) 2007 Michael S. Horn
- * 
+ *
  *           Michael S. Horn (michael.horn@tufts.edu)
  *           Tufts University Computer Science
  *           161 College Ave.
  *           Medford, MA 02155
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2) as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -71,7 +71,7 @@ public class Scanner {
 
    /** Maximum width of a TopCode unit in pixels */
    protected int maxu;
-   
+
 
 
 /**
@@ -88,7 +88,23 @@ public class Scanner {
       this.maxu    = 80;
    }
 
+/**
+* Scan the image and return a list of all topcodes found in it
+*/
+   public List<TopCode> scan(Mat mat) throws IOException {
+      int width = mat.width(), height = mat.height(), channels = mat.channels() ;
+      byte[] sourcePixels = new byte[width * height * channels];
+      mat.get(0, 0, sourcePixels);
 
+      // create new BufferedImage and
+      image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
+
+      // Get reference to backing data
+      final byte[] targetPixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+      System.arraycopy(sourcePixels, 0, targetPixels, 0, sourcePixels.length);
+
+      return scan(image);
+   }
 /**
  * Scan the given image file and return a list of topcodes found in it.
  */
@@ -106,7 +122,7 @@ public class Scanner {
       this.w       = image.getWidth();
       this.h       = image.getHeight();
       this.data    = image.getRGB(0, 0, w, h, null, 0, w);
-      
+
       threshold();          // run the adaptive threshold filter
       return findCodes();   // scan for topcodes
    }
@@ -130,10 +146,10 @@ public class Scanner {
       threshold();         // run the adaptive threshold filter
       return findCodes();  // scan for topcodes
    }
-   
+
 
 /**
- * Returns the original (unaltered) image   
+ * Returns the original (unaltered) image
  */
    public BufferedImage getImage() {
       return this.image;
@@ -156,7 +172,7 @@ public class Scanner {
    public int getImageHeight() {
       return this.h;
    }
-   
+
 
 /**
  * Sets the maximum allowable diameter (in pixels) for a TopCode
@@ -173,7 +189,7 @@ public class Scanner {
       this.maxu = (int)Math.ceil(f);
    }
 
-   
+
 /**
  * Returns the number of candidate topcodes found during a scan
  */
@@ -191,22 +207,22 @@ public class Scanner {
 
 
 /**
- * Binary (thresholded black/white) value for pixel (x,y)   
+ * Binary (thresholded black/white) value for pixel (x,y)
  */
    protected int getBW(int x, int y) {
       int pixel = data[y * w + x];
       return (pixel >> 24) & 0x01;
    }
 
-   
+
 /**
  * Average of thresholded pixels in a 3x3 region around (x,y).
- * Returned value is between 0 (black) and 255 (white).   
+ * Returned value is between 0 (black) and 255 (white).
  */
    protected int getSample3x3(int x, int y) {
       if (x < 1 || x > w-2 || y < 1 || y >= h-2) return 0;
       int pixel, sum = 0;
-      
+
       for (int j=y-1; j<=y+1; j++) {
          for (int i=x-1; i<=x+1; i++) {
             pixel = data[j * w + i];
@@ -219,15 +235,15 @@ public class Scanner {
       return (sum / 9);
    }
 
-   
+
 /**
  * Average of thresholded pixels in a 3x3 region around (x,y).
  * Returned value is either 0 (black) or 1 (white).
  */
-   protected int getBW3x3(int x, int y) { 
+   protected int getBW3x3(int x, int y) {
       if (x < 1 || x > w-2 || y < 1 || y >= h-2) return 0;
       int pixel, sum = 0;
-      
+
       for (int j=y-1; j<=y+1; j++) {
          for (int i=x-1; i<=x+1; i++) {
             pixel = data[j * w + i];
@@ -237,13 +253,13 @@ public class Scanner {
       return (sum >= 5) ? 1 : 0;
    }
 
-   
-   
+
+
 /**
  * Perform Wellner adaptive thresholding to produce binary pixel
  * data.  Also mark candidate spotcode locations.
  *
- * "Adaptive Thresholding for the DigitalDesk"   
+ * "Adaptive Thresholding for the DigitalDesk"
  * EuroPARC Technical Report EPC-93-110
  */
    protected void threshold() {
@@ -265,8 +281,8 @@ public class Scanner {
          //----------------------------------------
          k = (j % 2 == 0) ? 0 : w-1;
          k += (j * w);
-         
-         for (int i=0; i<w; i++) { 
+
+         for (int i=0; i<w; i++) {
 
             //----------------------------------------
             // Calculate pixel intensity (0-255)
@@ -277,13 +293,13 @@ public class Scanner {
             b = pixel & 0xff;
             a = (r + g + b) / 3;
             //a = r;
-            
+
             //----------------------------------------
             // Calculate sum as an approximate sum
             // of the last s pixels
             //----------------------------------------
             sum += a - (sum / s);
-         
+
             //----------------------------------------
             // Factor in sum from the previous row
             //----------------------------------------
@@ -292,7 +308,7 @@ public class Scanner {
             } else {
                threshold = sum / s;
             }
-            
+
             //----------------------------------------
             // Compare the average sum to current pixel
             // to decide black or white
@@ -302,14 +318,14 @@ public class Scanner {
             a = (a < threshold * f)? 0 : 1;
 
             //----------------------------------------
-            // Repack pixel data with binary data in 
+            // Repack pixel data with binary data in
             // the alpha channel, and the running sum
             // for this pixel in the RGB channels
             //----------------------------------------
             data[k] = (a << 24) + (sum & 0xffffff);
 
             switch (level) {
-               
+
             // On a white region. No black pixels yet
             case 0:
                if (a == 0) {  // First black encountered
@@ -339,7 +355,7 @@ public class Scanner {
                   w1++;
                }
                break;
-               
+
             // On second black region
             case 3:
                if (a == 0) {
@@ -358,11 +374,11 @@ public class Scanner {
 
                      dk = 1 + b2 + w1/2;
                      if (j % 2 == 0) {
-                        dk = k - dk; 
+                        dk = k - dk;
                      } else {
                         dk = k + dk;
                      }
-                     
+
                      data[dk - 1] |= mask;
                      data[dk] |= mask;
                      data[dk + 1] |= mask;
@@ -375,17 +391,17 @@ public class Scanner {
                }
                break;
             }
-            
-            
+
+
             k += (j % 2 == 0) ? 1 : -1;
          }
       }
    }
-      
-   
+
+
 
 /**
- * Scan the image line by line looking for TopCodes   
+ * Scan the image line by line looking for TopCodes
  */
    protected List<TopCode> findCodes() {
       this.tcount = 0;
@@ -403,7 +419,7 @@ public class Scanner {
 /*
                if ((data[k-w] & 0x2000000) > 0 ||
                    (data[k+w] & 0x2000000) > 0)) {
-*/                    
+*/
                   if (!overlaps(spots, i, j)) {
                      this.tcount++;
                      spot.decode(this, i, j);
@@ -423,7 +439,7 @@ public class Scanner {
 
 
 /**
- * Returns true if point (x,y) is in an existing TopCode bullseye   
+ * Returns true if point (x,y) is in an existing TopCode bullseye
  */
    protected boolean overlaps(List<TopCode> spots, int x, int y) {
       for (TopCode top : spots) {
@@ -431,11 +447,11 @@ public class Scanner {
       }
       return false;
    }
-   
-   
+
+
 /**
  * Counts the number of vertical pixels from (x,y) until a color
- * change is perceived. 
+ * change is perceived.
  */
    protected int ydist(int x, int y, int d) {
       int sample;
@@ -450,32 +466,32 @@ public class Scanner {
       return -1;
    }
 
-   
+
 /**
  * Counts the number of horizontal pixels from (x,y) until a color
- * change is perceived. 
+ * change is perceived.
  */
    protected int xdist(int x, int y, int d) {
       int sample;
       int start = getBW3x3(x, y);
-      
+
       for (int i=x+d; i>1 && i<w-1; i+=d) {
          sample = getBW3x3(i, y);
-         if (start + sample == 1) { 
+         if (start + sample == 1) {
             return (d > 0) ? i - x : x - i;
          }
       }
       return -1;
    }
 
-   
-//   protected void markTest(int x, int y) { 
+
+//   protected void markTest(int x, int y) {
 //      Graphics2D g = (Graphics2D)getImage().getGraphics();
 //      g.setColor(Color.red);
 //      g.fillRect(x - 1, y - 1, 3, 3);
 //   }
 
-   
+
 /**
  * For debugging purposes, create a black and white image that
  * shows the result of adaptive thresholding.
@@ -487,7 +503,7 @@ public class Scanner {
 
       int pixel = 0;
       int k = 0;
-      for (int j=0; j<h; j++) { 
+      for (int j=0; j<h; j++) {
          for (int i=0; i<w; i++) {
 
             pixel = (data[k++] >> 24);
